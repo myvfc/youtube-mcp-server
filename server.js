@@ -5,17 +5,22 @@ const app = express();
 app.use(express.json());
 
 // -------------------------------------------------------
-// LOG ALL INCOMING REQUESTS (for debugging PMG discovery)
+// 🔍 FULL REQUEST LOGGER (this will show EXACT method + URL)
 // -------------------------------------------------------
 app.use((req, res, next) => {
-  console.log("--------------------------------------------------");
-  console.log("Incoming request:", req.method, req.path);
+  console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+  console.log("🟦 NEW REQUEST RECEIVED");
+  console.log("Method:", req.method);
+  console.log("Original URL:", req.originalUrl);
+  console.log("Path:", req.path);
   console.log("Headers:", req.headers);
-  console.log("--------------------------------------------------");
+  console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<");
   next();
 });
 
-// Environment variables
+// -------------------------------------------------------
+// ENVIRONMENT VARIABLES
+// -------------------------------------------------------
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
 
@@ -39,7 +44,7 @@ const manifest = {
     },
     {
       name: "youtube_get_video",
-      description: "Retrieve details for a YouTube video ID.",
+      description: "Retrieve details for a specific YouTube video ID.",
       input_schema: {
         type: "object",
         properties: {
@@ -52,7 +57,7 @@ const manifest = {
 };
 
 // -------------------------------------------------------
-// AUTH MIDDLEWARE — SKIP ALL MANIFEST ROUTES
+// AUTH MIDDLEWARE — DO NOT PROTECT MCP MANIFEST ROUTES
 // -------------------------------------------------------
 app.use((req, res, next) => {
   const openPaths = [
@@ -68,7 +73,6 @@ app.use((req, res, next) => {
     return next();
   }
 
-  // All other routes require Bearer token
   const auth = req.headers.authorization;
   if (!auth || auth !== `Bearer ${AUTH_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -78,7 +82,7 @@ app.use((req, res, next) => {
 });
 
 // -------------------------------------------------------
-// MCP ROUTES (PMG REQUIRES /mcp ENDPOINTS)
+// MCP MANIFEST ROUTES (PMG LOOKS AT /mcp)
 // -------------------------------------------------------
 app.get("/mcp/manifest.json", (req, res) => {
   res.json(manifest);
@@ -96,7 +100,7 @@ app.get("/mcp", (req, res) => {
   res.json(manifest);
 });
 
-// Optional browser-friendly routes
+// browser-friendly
 app.get("/manifest.json", (req, res) => {
   res.json(manifest);
 });
@@ -106,7 +110,7 @@ app.get("/manifest", (req, res) => {
 });
 
 // -------------------------------------------------------
-// YOUTUBE SEARCH TOOL (Protected)
+// YOUTUBE SEARCH TOOL
 // -------------------------------------------------------
 app.post("/youtube/search", async (req, res) => {
   const { query, maxResults = 10 } = req.body;
@@ -129,7 +133,7 @@ app.post("/youtube/search", async (req, res) => {
 });
 
 // -------------------------------------------------------
-// YOUTUBE VIDEO INFO TOOL (Protected)
+// YOUTUBE GET TOOL
 // -------------------------------------------------------
 app.post("/youtube/get", async (req, res) => {
   const { videoId } = req.body;
@@ -151,7 +155,7 @@ app.post("/youtube/get", async (req, res) => {
 });
 
 // -------------------------------------------------------
-// FINAL CATCH-ALL — return manifest for ANY GET request
+// ⭐ CATCH-ALL FALLBACK (any GET returns manifest)
 // -------------------------------------------------------
 app.get("*", (req, res) => {
   res.json(manifest);
@@ -161,5 +165,5 @@ app.get("*", (req, res) => {
 // START SERVER
 // -------------------------------------------------------
 app.listen(3000, () => {
-  console.log("YouTube MCP server running on port 3000");
+  console.log("🚀 YouTube MCP server running on port 3000");
 });
