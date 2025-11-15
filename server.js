@@ -28,44 +28,36 @@ const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
 /* ============================================================
    📦 MCP MANIFEST
    ============================================================ */
-const manifest = {
-  version: "1.0.0",
-  tools: [
-    {
-      name: "youtube_search",
-      description: "Search YouTube for videos.",
-      input_schema: {
-        type: "object",
-        properties: {
-          query: { type: "string" },
-          maxResults: { type: "number" }
-        },
-        required: ["query"]
-      }
-    },
-    {
-      name: "youtube_get_video",
-      description: "Retrieve details for a YouTube video ID.",
-      input_schema: {
-        type: "object",
-        properties: { videoId: { type: "string" } },
-        required: ["videoId"]
-      }
+const tools = [
+  {
+    name: "youtube_search",
+    description: "Search YouTube for videos.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        maxResults: { type: "number" }
+      },
+      required: ["query"]
     }
-  ]
-};
+  },
+  {
+    name: "youtube_get_video",
+    description: "Retrieve details for a YouTube video ID.",
+    input_schema: {
+      type: "object",
+      properties: {
+        videoId: { type: "string" }
+      },
+      required: ["videoId"]
+    }
+  }
+];
 
 /* ============================================================
-   🔓 AUTH MIDDLEWARE — manifest routes are PUBLIC
+   🔓 AUTH MIDDLEWARE — manifest & JSON-RPC open
    ============================================================ */
-const openPaths = [
-  "/manifest.json",
-  "/manifest",
-  "/mcp",
-  "/mcp/",
-  "/mcp/manifest",
-  "/mcp/manifest.json"
-];
+const openPaths = ["/mcp", "/mcp/", "/manifest.json", "/manifest"];
 
 app.use((req, res, next) => {
   if (openPaths.includes(req.path)) return next();
@@ -79,98 +71,92 @@ app.use((req, res, next) => {
 });
 
 /* ============================================================
-   ⭐ JSON-RPC 2.0 HANDLER FOR MCP DISCOVERY
+   ⭐ JSON-RPC HANDLER (MCP STANDARD)
    ============================================================ */
-app.post("/mcp", (req, res) => {
-  const { id, jsonrpc, method } = req.body;
+app.post("/mcp", async (req, res) => {
+  const { id, jsonrpc, method, params } = req.body;
 
-  // JSON-RPC MUST HAVE jsonrpc + id
   if (jsonrpc !== "2.0" || !id) {
-    return res.status(400).json({
+    return res.json({
       jsonrpc: "2.0",
       id: id || null,
       error: { code: -32600, message: "Invalid Request" }
     });
   }
 
+  // 🔧 PMG calling: tools/list
+  if (method === "tools/list") {
+    return res.json({
+      jsonrpc: "2.0",
+      id,
+      result: { tools }
+    });
+  }
+
+  // 🔧 PMG calling: tools/call
+  if (method === "tools/call") {
+    const { name, arguments: args } = params;
+
+    if (name === "youtube_search") {
+      const searchRes = await youtubeSearch(args.query, args.maxResults);
+      return res.json({ jsonrpc: "2.0", id, result: searchRes });
+    }
+
+    if (name === "youtube_get_video") {
+      const vidRes = await youtubeGetVideo(args.videoId);
+      return res.json({ jsonrpc: "2.0", id, result: vidRes });
+    }
+
+    return res.json({
+      jsonrpc: "2.0",
+      id,
+      error: { code: -32601, message: "Unknown tool" }
+    });
+  }
+
+  // unknown method
   return res.json({
     jsonrpc: "2.0",
     id,
-    result: {
-      manifest
-    }
+    error: { code: -32601, message: `Unknown method ${method}` }
   });
 });
 
-// fallback POSTs
-app.post("/mcp/manifest", (req, res) => {
-  const { id } = req.body;
-  res.json({ jsonrpc: "2.0", id, result: { manifest } });
-});
-
-app.post("/mcp/manifest.json", (req, res) => {
-  const { id } = req.body;
-  res.json({ jsonrpc: "2.0", id, result: { manifest } });
-});
-
 /* ============================================================
-   GET routes (browser-friendly)
+   🔧 TOOL FUNCTIONS
    ============================================================ */
-app.get("/mcp", (req, res) => res.json(manifest));
-app.get("/mcp/", (req, res) => res.json(manifest));
-app.get("/mcp/manifest", (req, res) => res.json(manifest));
-app.get("/mcp/manifest.json", (req, res) => res.json(manifest));
-
-app.get("/manifest.json", (req, res) => res.json(manifest));
-app.get("/manifest", (req, res) => res.json(manifest));
-
-/* ============================================================
-   🔧 YouTube Tool Endpoints (stay same)
-   ============================================================ */
-
-app.post("/youtube/search", async (req, res) => {
-  const { query, maxResults = 10 } = req.body;
-
+async function youtubeSearch(query, maxResults = 10) {
   const url =
     `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video` +
     `&maxResults=${maxResults}&q=${encodeURIComponent(query)}` +
     `&key=${API_KEY}`;
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    res.json(data.items || []);
-  } catch (err) {
-    res.status(500).json({ error: "YouTube search failed", details: err.message });
-  }
-});
+  const response = await fetch(url);
+  const data = await response.json();
+  return data.items || [];
+}
 
-app.post("/youtube/get", async (req, res) => {
-  const { videoId } = req.body;
-
+async function youtubeGetVideo(videoId) {
   const url =
     `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,player` +
     `&id=${videoId}&key=${API_KEY}`;
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-    res.json(data.items?.[0] || {});
-  } catch (err) {
-    res.status(500).json({ error: "YouTube video lookup failed", details: err.message });
-  }
-});
+  const response = await fetch(url);
+  const data = await response.json();
+  return data.items?.[0] || null;
+}
 
 /* ============================================================
-   🛑 Catch-all GET fallback
+   🌐 GET manifest for browser/debugging
    ============================================================ */
-app.get("*", (req, res) => {
-  res.json(manifest);
-});
+app.get("/manifest.json", (req, res) => res.json({ tools }));
+app.get("/mcp", (req, res) =>
+  res.json({ note: "Use POST /mcp with JSON-RPC 2.0" })
+);
 
 /* ============================================================
    🚀 START SERVER
    ============================================================ */
 app.listen(3000, () => {
-  console.log("🚀 JSON-RPC compliant YouTube MCP server running on port 3000");
+  console.log("🚀 MCP JSON-RPC server running on port 3000");
 });
