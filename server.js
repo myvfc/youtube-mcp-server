@@ -4,12 +4,23 @@ import fetch from "node-fetch";
 const app = express();
 app.use(express.json());
 
+// -------------------------------------------------------
+// LOG ALL INCOMING REQUESTS (for debugging PMG discovery)
+// -------------------------------------------------------
+app.use((req, res, next) => {
+  console.log("--------------------------------------------------");
+  console.log("Incoming request:", req.method, req.path);
+  console.log("Headers:", req.headers);
+  console.log("--------------------------------------------------");
+  next();
+});
+
 // Environment variables
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
 
 // -------------------------------------------------------
-// MASTER MANIFEST OBJECT
+// MCP MANIFEST OBJECT
 // -------------------------------------------------------
 const manifest = {
   version: "1.0.0",
@@ -28,7 +39,7 @@ const manifest = {
     },
     {
       name: "youtube_get_video",
-      description: "Retrieve details for a specific YouTube video ID.",
+      description: "Retrieve details for a YouTube video ID.",
       input_schema: {
         type: "object",
         properties: {
@@ -41,7 +52,7 @@ const manifest = {
 };
 
 // -------------------------------------------------------
-// AUTH MIDDLEWARE — SKIP ALL MCP MANIFEST ROUTES
+// AUTH MIDDLEWARE — SKIP ALL MANIFEST ROUTES
 // -------------------------------------------------------
 app.use((req, res, next) => {
   const openPaths = [
@@ -67,7 +78,7 @@ app.use((req, res, next) => {
 });
 
 // -------------------------------------------------------
-// MCP MANIFEST ROUTES (PMG REQUIRES /mcp ENDPOINT)
+// MCP ROUTES (PMG REQUIRES /mcp ENDPOINTS)
 // -------------------------------------------------------
 app.get("/mcp/manifest.json", (req, res) => {
   res.json(manifest);
@@ -85,7 +96,7 @@ app.get("/mcp", (req, res) => {
   res.json(manifest);
 });
 
-// Browser-friendly routes (optional but useful)
+// Optional browser-friendly routes
 app.get("/manifest.json", (req, res) => {
   res.json(manifest);
 });
@@ -95,7 +106,7 @@ app.get("/manifest", (req, res) => {
 });
 
 // -------------------------------------------------------
-// YOUTUBE SEARCH TOOL
+// YOUTUBE SEARCH TOOL (Protected)
 // -------------------------------------------------------
 app.post("/youtube/search", async (req, res) => {
   const { query, maxResults = 10 } = req.body;
@@ -118,7 +129,7 @@ app.post("/youtube/search", async (req, res) => {
 });
 
 // -------------------------------------------------------
-// YOUTUBE VIDEO INFO TOOL
+// YOUTUBE VIDEO INFO TOOL (Protected)
 // -------------------------------------------------------
 app.post("/youtube/get", async (req, res) => {
   const { videoId } = req.body;
@@ -140,8 +151,7 @@ app.post("/youtube/get", async (req, res) => {
 });
 
 // -------------------------------------------------------
-// CATCH-ALL FALLBACK — return manifest for any GET path
-// (fixes PMG discovery oddities)
+// FINAL CATCH-ALL — return manifest for ANY GET request
 // -------------------------------------------------------
 app.get("*", (req, res) => {
   res.json(manifest);
