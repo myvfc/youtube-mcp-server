@@ -9,9 +9,9 @@ app.use(express.json());
    ============================================================ */
 app.use((req, res, next) => {
   console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-  console.log("🟦 NEW REQUEST RECEIVED");
+  console.log("🟦 NEW REQUEST");
   console.log("Method:", req.method);
-  console.log("Original URL:", req.originalUrl);
+  console.log("URL:", req.originalUrl);
   console.log("Path:", req.path);
   console.log("Headers:", req.headers);
   console.log("Body:", req.body);
@@ -20,13 +20,13 @@ app.use((req, res, next) => {
 });
 
 /* ============================================================
-   🔑 ENVIRONMENT VARS
+   🔑 ENV VARS
    ============================================================ */
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
 
 /* ============================================================
-   📦 MCP TOOLS (correct camelCase schema)
+   📦 MCP TOOLS (camelCase)
    ============================================================ */
 const tools = [
   {
@@ -55,7 +55,7 @@ const tools = [
 ];
 
 /* ============================================================
-   🔓 AUTH MIDDLEWARE — manifest & JSON-RPC open
+   🔓 AUTH MIDDLEWARE — open methods
    ============================================================ */
 const openPaths = ["/mcp", "/mcp/", "/manifest.json", "/manifest"];
 
@@ -85,6 +85,24 @@ app.post("/mcp", async (req, res) => {
   }
 
   /* ----------------------------------------------
+     ⭐ REQUIRED BY MCP:
+     method: "initialize"
+     ---------------------------------------------- */
+  if (method === "initialize") {
+    return res.json({
+      jsonrpc: "2.0",
+      id,
+      result: {
+        protocolVersion: "2025-06-18",
+        serverInfo: { name: "youtube-mcp-server", version: "1.0.0" },
+        capabilities: {
+          tools: {}
+        }
+      }
+    });
+  }
+
+  /* ----------------------------------------------
      📌 tools/list
      ---------------------------------------------- */
   if (method === "tools/list") {
@@ -102,13 +120,13 @@ app.post("/mcp", async (req, res) => {
     const { name, arguments: args } = params;
 
     if (name === "youtube_search") {
-      const searchRes = await youtubeSearch(args.query, args.maxResults);
-      return res.json({ jsonrpc: "2.0", id, result: searchRes });
+      const result = await youtubeSearch(args.query, args.maxResults);
+      return res.json({ jsonrpc: "2.0", id, result });
     }
 
     if (name === "youtube_get_video") {
-      const vidRes = await youtubeGetVideo(args.videoId);
-      return res.json({ jsonrpc: "2.0", id, result: vidRes });
+      const result = await youtubeGetVideo(args.videoId);
+      return res.json({ jsonrpc: "2.0", id, result });
     }
 
     return res.json({
@@ -164,5 +182,5 @@ app.get("/mcp", (req, res) =>
    🚀 START SERVER
    ============================================================ */
 app.listen(3000, () => {
-  console.log("🚀 MCP JSON-RPC server running on port 3000");
+  console.log("🚀 MCP JSON-RPC server with initialize() running on port 3000");
 });
