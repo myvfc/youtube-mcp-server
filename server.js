@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 /* ============================================================
-   🔍 FULL REQUEST LOGGER — shows EXACT URL, method, headers
+   🔍 FULL REQUEST LOGGER
    ============================================================ */
 app.use((req, res, next) => {
   console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
@@ -20,7 +20,7 @@ app.use((req, res, next) => {
 });
 
 /* ============================================================
-   🔑 ENVIRONMENT VARIABLES
+   🔑 ENVIRONMENT VARS
    ============================================================ */
 const API_KEY = process.env.YOUTUBE_API_KEY;
 const AUTH_SECRET = process.env.MCP_AUTH_TOKEN;
@@ -45,7 +45,7 @@ const manifest = {
     },
     {
       name: "youtube_get_video",
-      description: "Retrieve details for a specific YouTube video ID.",
+      description: "Retrieve details for a YouTube video ID.",
       input_schema: {
         type: "object",
         properties: { videoId: { type: "string" } },
@@ -56,9 +56,8 @@ const manifest = {
 };
 
 /* ============================================================
-   🔓 AUTH MIDDLEWARE — manifest routes must be PUBLIC
+   🔓 AUTH MIDDLEWARE — manifest routes are PUBLIC
    ============================================================ */
-
 const openPaths = [
   "/manifest.json",
   "/manifest",
@@ -69,9 +68,7 @@ const openPaths = [
 ];
 
 app.use((req, res, next) => {
-  if (openPaths.includes(req.path)) {
-    return next();
-  }
+  if (openPaths.includes(req.path)) return next();
 
   const auth = req.headers.authorization;
   if (!auth || auth !== `Bearer ${AUTH_SECRET}`) {
@@ -82,42 +79,55 @@ app.use((req, res, next) => {
 });
 
 /* ============================================================
-   📣 MCP DISCOVERY ROUTES — PMG requires POST /mcp
+   ⭐ JSON-RPC 2.0 HANDLER FOR MCP DISCOVERY
    ============================================================ */
-
-// PMG MAIN DISCOVERY ROUTE
 app.post("/mcp", (req, res) => {
-  res.json(manifest);
+  const { id, jsonrpc, method } = req.body;
+
+  // JSON-RPC MUST HAVE jsonrpc + id
+  if (jsonrpc !== "2.0" || !id) {
+    return res.status(400).json({
+      jsonrpc: "2.0",
+      id: id || null,
+      error: { code: -32600, message: "Invalid Request" }
+    });
+  }
+
+  return res.json({
+    jsonrpc: "2.0",
+    id,
+    result: {
+      manifest
+    }
+  });
 });
 
-// PMG sometimes POSTs to these:
-app.post("/mcp/", (req, res) => {
-  res.json(manifest);
-});
-
+// fallback POSTs
 app.post("/mcp/manifest", (req, res) => {
-  res.json(manifest);
+  const { id } = req.body;
+  res.json({ jsonrpc: "2.0", id, result: { manifest } });
 });
 
 app.post("/mcp/manifest.json", (req, res) => {
-  res.json(manifest);
+  const { id } = req.body;
+  res.json({ jsonrpc: "2.0", id, result: { manifest } });
 });
 
-// GET versions for browser/manual testing
+/* ============================================================
+   GET routes (browser-friendly)
+   ============================================================ */
 app.get("/mcp", (req, res) => res.json(manifest));
 app.get("/mcp/", (req, res) => res.json(manifest));
 app.get("/mcp/manifest", (req, res) => res.json(manifest));
-app.get("/mcp/manifest.json", (req, res) => res.json(manifact));
+app.get("/mcp/manifest.json", (req, res) => res.json(manifest));
 
-/* ============================================================
-   🌐 BROWSER-FRIENDLY MANIFEST ROUTES
-   ============================================================ */
 app.get("/manifest.json", (req, res) => res.json(manifest));
 app.get("/manifest", (req, res) => res.json(manifest));
 
 /* ============================================================
-   🔧 YOUTUBE SEARCH TOOL (protected)
+   🔧 YouTube Tool Endpoints (stay same)
    ============================================================ */
+
 app.post("/youtube/search", async (req, res) => {
   const { query, maxResults = 10 } = req.body;
 
@@ -131,16 +141,10 @@ app.post("/youtube/search", async (req, res) => {
     const data = await response.json();
     res.json(data.items || []);
   } catch (err) {
-    res.status(500).json({
-      error: "YouTube search failed",
-      details: err.message
-    });
+    res.status(500).json({ error: "YouTube search failed", details: err.message });
   }
 });
 
-/* ============================================================
-   🔧 YOUTUBE GET VIDEO TOOL (protected)
-   ============================================================ */
 app.post("/youtube/get", async (req, res) => {
   const { videoId } = req.body;
 
@@ -153,15 +157,12 @@ app.post("/youtube/get", async (req, res) => {
     const data = await response.json();
     res.json(data.items?.[0] || {});
   } catch (err) {
-    res.status(500).json({
-      error: "YouTube video lookup failed",
-      details: err.message
-    });
+    res.status(500).json({ error: "YouTube video lookup failed", details: err.message });
   }
 });
 
 /* ============================================================
-   🛑 FINAL CATCH-ALL (GET) — return manifest
+   🛑 Catch-all GET fallback
    ============================================================ */
 app.get("*", (req, res) => {
   res.json(manifest);
@@ -171,5 +172,5 @@ app.get("*", (req, res) => {
    🚀 START SERVER
    ============================================================ */
 app.listen(3000, () => {
-  console.log("🚀 YouTube MCP server is running on port 3000");
+  console.log("🚀 JSON-RPC compliant YouTube MCP server running on port 3000");
 });
