@@ -88,6 +88,17 @@ app.use((req, res, next) => {
 app.post("/mcp", async (req, res) => {
   const { id, jsonrpc, method, params } = req.body;
 
+  /* ---------------------------------------------------------
+     ⭐⭐ REQUIRED FIX: IGNORE NOTIFICATIONS ⭐⭐
+     --------------------------------------------------------- */
+  if (method && method.startsWith("notifications/")) {
+    console.log("🔕 Ignoring notification:", method);
+    return res.status(200).end(); // No JSON response
+  }
+
+  /* ---------------------------------------------------------
+     Validate structure (only for requests, not notifications)
+     --------------------------------------------------------- */
   if (jsonrpc !== "2.0" || typeof id === "undefined") {
     return res.json({
       jsonrpc: "2.0",
@@ -96,9 +107,9 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  /* ----------------------------------------------
+  /* ---------------------------------------------------------
      ⭐ REQUIRED MCP HANDSHAKE
-     ---------------------------------------------- */
+     --------------------------------------------------------- */
   if (method === "initialize") {
     return res.json({
       jsonrpc: "2.0",
@@ -111,9 +122,9 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  /* ----------------------------------------------
+  /* ---------------------------------------------------------
      📌 tools/list
-     ---------------------------------------------- */
+     --------------------------------------------------------- */
   if (method === "tools/list") {
     return res.json({
       jsonrpc: "2.0",
@@ -122,9 +133,9 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  /* ----------------------------------------------
+  /* ---------------------------------------------------------
      📌 tools/call
-     ---------------------------------------------- */
+     --------------------------------------------------------- */
   if (method === "tools/call") {
     const { name, arguments: args } = params;
 
@@ -153,9 +164,9 @@ app.post("/mcp", async (req, res) => {
     });
   }
 
-  /* ----------------------------------------------
+  /* ---------------------------------------------------------
      ❌ Unknown method
-     ---------------------------------------------- */
+     --------------------------------------------------------- */
   return res.json({
     jsonrpc: "2.0",
     id,
@@ -201,3 +212,4 @@ app.get("/mcp", (req, res) =>
 app.listen(3000, () => {
   console.log("🚀 MCP JSON-RPC YouTube Server running on port 3000");
 });
+
