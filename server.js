@@ -53,7 +53,7 @@ const tools = [
         },
         limit: { 
           type: "number",
-          description: "Maximum number of results to return (default: 5)",
+          description: "Maximum number of results to return (default: 3)",
           default: 5
         }
       },
@@ -141,7 +141,7 @@ app.post("/mcp", async (req, res) => {
 
     if (name === "search_ou_videos") {
       try {
-        const videos = await searchOUVideos(args.query, args.limit || 5);
+        const videos = await searchOUVideos(args.query, args.limit || 3);
         return res.json({
           jsonrpc: "2.0",
           id,
