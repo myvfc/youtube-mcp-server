@@ -166,6 +166,8 @@ app.post("/mcp", async (req, res) => {
 
 // ===== LISTEN =====
 const port = process.env.PORT || 8080;
+
 app.listen(port, () => {
   console.log("MCP YouTube (Sheets MVP) listening on " + port);
 });
+
