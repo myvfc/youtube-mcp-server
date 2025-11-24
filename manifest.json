@@ -1,0 +1,9 @@
+{
+  "name": "YouTube OU Video MCP",
+  "version": "1.0.0",
+  "description": "MCP server for searching Oklahoma Sooners videos stored in Supabase",
+  "api": {
+    "type": "mcp",
+    "url": "https://youtube-mcp-server-production-099d.up.railway.app/mcp"
+  }
+}
