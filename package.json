@@ -1,14 +1,14 @@
 {
-  "name": "youtube-mcp",
-  "version": "2.0.0",
-  "main": "server.js",
+  "name": "youtube-mcp-server",
+  "version": "1.0.0",
   "type": "module",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.0",
-    "node-fetch": "^3.3.2",
-    "@supabase/supabase-js": "^2.39.0"
+    "@supabase/supabase-js": "^2.39.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3"
   }
 }
