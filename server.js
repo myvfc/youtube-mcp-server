@@ -162,11 +162,10 @@ app.post("/mcp", async (req, res) => {
   }
 });
 
-// ===== RAILWAY KEEP-ALIVE (Correct & Guaranteed) =====
-if (process.env.RAILWAY_SERVICE_WEB_URL) {
+// --- Reliable Keep-Alive using manually-set PUBLIC_URL ---
+if (process.env.PUBLIC_URL) {
   setInterval(() => {
-    fetch(`${process.env.RAILWAY_SERVICE_WEB_URL}/health`)
-      .catch(() => {});
+    fetch(`${process.env.PUBLIC_URL}/health`).catch(() => {});
   }, 45000);
 }
 
@@ -176,6 +175,7 @@ const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log("MCP YouTube (Sheets MVP) listening on " + port);
 });
+
 
 
 
