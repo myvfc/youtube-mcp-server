@@ -5,6 +5,7 @@ import { parse } from "csv-parse/sync";
 import fetch from "node-fetch";
 import { tools } from "./tools.js";
 
+// Log unexpected runtime errors
 process.on("uncaughtException", err => {
   console.error("UNCAUGHT EXCEPTION:", err);
 });
@@ -12,12 +13,6 @@ process.on("uncaughtException", err => {
 process.on("unhandledRejection", err => {
   console.error("UNHANDLED REJECTION:", err);
 });
-
-import express from "express";
-import "dotenv/config";
-import { parse } from "csv-parse/sync";
-import fetch from "node-fetch";
-import { tools } from "./tools.js";
 
 const app = express();
 app.use(express.json());
@@ -50,12 +45,10 @@ async function loadVideos() {
     skip_empty_lines: true
   });
 
-  // Transform rows into normalized video objects
   return rows.map(row => {
     const url = row.url?.trim() || "";
     let youtube_id = "";
 
-    // Extract YouTube ID
     if (url.includes("watch?v=")) {
       youtube_id = url.split("watch?v=")[1].split("&")[0];
     } else if (url.includes("youtu.be/")) {
@@ -64,8 +57,8 @@ async function loadVideos() {
 
     const title = row["OU Sooners videos"]?.trim() || "";
     const published_at = row["published date"] || "";
-
     const description = row["description"] || "";
+
     const tags = description
       .toLowerCase()
       .replace(/[^\w\s]/g, "")
@@ -105,8 +98,8 @@ async function recentVideos({ limit = 10 }) {
 
 async function videosBySport({ sport, limit = 10 }) {
   const videos = await loadVideos();
-
   const s = sport.toLowerCase();
+
   const results = videos.filter(v =>
     v.tags.includes(s) ||
     v.title.toLowerCase().includes(s)
@@ -176,31 +169,28 @@ app.post("/mcp", async (req, res) => {
   }
 });
 
-// --- HEARTBEAT: Keep Railway container alive (fires immediately) ---
-const HEARTBEAT_URL = process.env.PUBLIC_URL; // set this in Railway Variables
+// ===== HEARTBEAT (fires immediately, keeps Railway alive) =====
+const PUBLIC_URL = process.env.PUBLIC_URL;
 
 async function heartbeat() {
-  if (!HEARTBEAT_URL) return;
+  if (!PUBLIC_URL) return;
 
   try {
-    await fetch(`${HEARTBEAT_URL}/health`);
-  } catch (e) {
-    // ignore errors silently
-  }
+    await fetch(`${PUBLIC_URL}/health`);
+  } catch (e) {}
 
-  // re-fire heartbeat every 25 seconds
   setTimeout(heartbeat, 25000);
 }
 
-// start heartbeat immediately after boot
+// Start immediately
 heartbeat();
 
 // ===== LISTEN =====
 const port = process.env.PORT || 8080;
-
 app.listen(port, () => {
   console.log("MCP YouTube (Sheets MVP) listening on " + port);
 });
+
 
 
 
