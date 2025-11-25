@@ -5,6 +5,20 @@ import { parse } from "csv-parse/sync";
 import fetch from "node-fetch";
 import { tools } from "./tools.js";
 
+process.on("uncaughtException", err => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
+
+process.on("unhandledRejection", err => {
+  console.error("UNHANDLED REJECTION:", err);
+});
+
+import express from "express";
+import "dotenv/config";
+import { parse } from "csv-parse/sync";
+import fetch from "node-fetch";
+import { tools } from "./tools.js";
+
 const app = express();
 app.use(express.json());
 
