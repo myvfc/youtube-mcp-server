@@ -162,12 +162,24 @@ app.post("/mcp", async (req, res) => {
   }
 });
 
-// --- Reliable Keep-Alive using manually-set PUBLIC_URL ---
-if (process.env.PUBLIC_URL) {
-  setInterval(() => {
-    fetch(`${process.env.PUBLIC_URL}/health`).catch(() => {});
-  }, 45000);
+// --- HEARTBEAT: Keep Railway container alive (fires immediately) ---
+const HEARTBEAT_URL = process.env.PUBLIC_URL; // set this in Railway Variables
+
+async function heartbeat() {
+  if (!HEARTBEAT_URL) return;
+
+  try {
+    await fetch(`${HEARTBEAT_URL}/health`);
+  } catch (e) {
+    // ignore errors silently
+  }
+
+  // re-fire heartbeat every 25 seconds
+  setTimeout(heartbeat, 25000);
 }
+
+// start heartbeat immediately after boot
+heartbeat();
 
 // ===== LISTEN =====
 const port = process.env.PORT || 8080;
